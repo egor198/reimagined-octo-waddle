@@ -1,6 +1,7 @@
 // Инициализация Telegram Web App
 Telegram.WebApp.ready();
 
+// Получаем данные пользователя
 const user = Telegram.WebApp.initDataUnsafe.user;
 const userId = user?.id || "неизвестен";
 const firstName = user?.first_name || "гость";

@@ -1,21 +1,64 @@
-Telegram.WebApp.ready();
+// Инициализация Telegram WebApp
+function initTelegramWebApp() {
+    if (typeof Telegram === 'undefined' || !Telegram.WebApp) {
+        console.warn("Telegram WebApp not detected");
+        sendTestData();
+        return;
+    }
 
-function initTelegramData() {
+    Telegram.WebApp.ready();
+    Telegram.WebApp.expand();
+
     const user = Telegram.WebApp.initDataUnsafe.user;
     if (user) {
-        const userId = user.id.toString(); // Преобразуем в строку
-        const firstName = user.first_name || "Guest";
-        const userData = JSON.stringify({ userId, firstName });
-        
-        if (typeof SendToUnity === 'function') {
-            SendToUnity(userData);
-        } else if (typeof unityInstance !== 'undefined') {
-            unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', userData);
-        } else {
-            console.error("Unity instance not ready");
-        }
+        const userData = {
+            userId: user.id.toString(),
+            firstName: user.first_name || "Anonymous"
+        };
+        sendToUnity(userData);
+    } else {
+        sendTestData();
     }
 }
 
-// Вызываем после небольшой задержки, чтобы Unity точно был готов
-setTimeout(initTelegramData, 500);
+// Отправка данных в Unity
+function sendToUnity(data) {
+    if (!window.unityInstance) {
+        console.error("Unity instance not ready");
+        return;
+    }
+
+    try {
+        const json = JSON.stringify(data);
+        console.log("Sending to Unity:", json);
+        
+        // Два варианта вызова на выбор:
+        if (unityInstance.SendMessage) {
+            unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', json);
+        } else if (unityInstance.Module?.SendMessage) {
+            unityInstance.Module.SendMessage('TelegramManager', 'OnMessageReceived', json);
+        }
+    } catch (e) {
+        console.error("Failed to send data to Unity:", e);
+    }
+}
+
+// Тестовые данные
+function sendTestData() {
+    sendToUnity({
+        userId: "test_" + Math.floor(Math.random() * 1000),
+        firstName: "Test User"
+    });
+}
+
+// Функция для вызова из Unity
+function CloseWebApp(unused) {
+    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+        Telegram.WebApp.close();
+    }
+}
+
+// Инициализация после загрузки Unity
+function onUnityReady() {
+    setTimeout(initTelegramWebApp, 500);
+}

@@ -3,79 +3,33 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>My Telegram Game</title>
-    
-    <!-- Telegram WebApp SDK -->
+    <title>Unity Telegram WebApp</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
     <style>
-        /* Базовые стили для контейнера игры */
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background: #000;
-        }
-        
-        #unity-container {
+        body { margin: 0; padding: 0; overflow: hidden; }
+        #unity-container { position: absolute; width: 100%; height: 100%; }
+        #unity-canvas { width: 100%; height: 100%; background: #231F20; }
+        #debug-console {
             position: absolute;
-            width: 100%;
-            height: 100%;
-        }
-        
-        #unity-canvas {
-            width: 100%;
-            height: 100%;
-            background: #231F20;
-        }
-        
-        /* Лоадер */
-        #unity-loading-bar {
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            display: none;
-        }
-        
-        #unity-progress-bar {
-            width: 200px;
-            height: 20px;
-            background: #555;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        
-        #unity-progress-bar-fill {
-            height: 100%;
-            width: 0%;
-            background: #5a8eff;
-            transition: width 0.1s;
-        }
-        
-        /* Мобильная адаптация */
-        .unity-mobile #unity-canvas {
-            width: 100%;
-            height: 100%;
+            bottom: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            font-family: monospace;
+            z-index: 1000;
         }
     </style>
 </head>
 <body>
-    <!-- Контейнер для Unity -->
     <div id="unity-container">
         <canvas id="unity-canvas"></canvas>
-        <div id="unity-loading-bar">
-            <div id="unity-progress-bar">
-                <div id="unity-progress-bar-fill"></div>
-            </div>
-        </div>
+        <div id="debug-console">Initializing...</div>
     </div>
 
-    <!-- Основной скрипт загрузки Unity -->
     <script>
-        // Конфигурация загрузки Unity (измените пути при необходимости)
+        // Конфиг Unity (измените под свою сборку)
         var buildUrl = "Build";
-        var loaderUrl = buildUrl + "/Test.loader.js";
         var config = {
             dataUrl: buildUrl + "/Test.data",
             frameworkUrl: buildUrl + "/Test.framework.js",
@@ -85,85 +39,67 @@
             productVersion: "0.1",
         };
 
-        // Элементы для отображения прогресса загрузки
-        var loadingBar = document.querySelector("#unity-loading-bar");
-        var progressBar = document.querySelector("#unity-progress-bar-fill");
-        var unityContainer = document.querySelector("#unity-container");
+        var debugConsole = document.getElementById("debug-console");
+        debugConsole.textContent = "Loading Unity...";
 
-        // Показываем лоадер
-        loadingBar.style.display = "block";
-
-        // Создаем скрипт для загрузки Unity
         var script = document.createElement("script");
-        script.src = loaderUrl;
+        script.src = buildUrl + "/WebGL.loader.js";
         
-        script.onload = () => {
-            // Создаем экземпляр Unity
+        script.onload = function() {
             createUnityInstance(document.querySelector("#unity-canvas"), config, (progress) => {
-                // Обновляем прогресс-бар
-                progressBar.style.width = (100 * progress) + "%";
-            }).then((unityInstance) => {
-                // Когда Unity загружен
-                loadingBar.style.display = "none";
-                window.unityInstance = unityInstance; // Делаем доступным глобально
-                console.log("Unity успешно загружен!");
+                debugConsole.textContent = "Loading: " + Math.round(progress * 100) + "%";
+            }).then(function(unityInstance) {
+                window.unityInstance = unityInstance;
+                debugConsole.textContent = "Unity loaded! Initializing Telegram...";
                 
-                // Инициализируем Telegram WebApp после загрузки Unity
-                initTelegramWebApp();
-            }).catch((message) => {
-                alert("Ошибка загрузки Unity: " + message);
+                // Инициализация Telegram
+                if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                    Telegram.WebApp.ready();
+                    Telegram.WebApp.expand();
+                    
+                    const user = Telegram.WebApp.initDataUnsafe.user;
+                    if (user) {
+                        const userData = {
+                            userId: user.id.toString(),
+                            firstName: user.first_name || "Anonymous",
+                            theme: Telegram.WebApp.colorScheme
+                        };
+                        
+                        debugConsole.textContent = "Sending to Unity:\n" + JSON.stringify(userData, null, 2);
+                        
+                        unityInstance.SendMessage(
+                            'TelegramManager',
+                            'OnMessageReceived',
+                            JSON.stringify(userData)
+                        );
+                    } else {
+                        debugConsole.textContent = "No user data found in Telegram WebApp";
+                        unityInstance.SendMessage(
+                            'TelegramManager',
+                            'OnMessageReceived',
+                            '{"userId":"NO_USER","firstName":"Unknown","theme":"light"}'
+                        );
+                    }
+                } else {
+                    debugConsole.textContent = "Not in Telegram, using test data";
+                    unityInstance.SendMessage(
+                        'TelegramManager',
+                        'OnMessageReceived',
+                        '{"userId":"BROWSER_123","firstName":"Browser User","theme":"light"}'
+                    );
+                }
+            }).catch(function(error) {
+                debugConsole.textContent = "Unity error: " + error;
             });
         };
         
-        script.onerror = () => {
-            alert("Не удалось загрузить скрипт Unity!");
+        script.onerror = function() {
+            debugConsole.textContent = "Failed to load Unity loader script!";
         };
         
         document.body.appendChild(script);
 
-        // Функция для работы с Telegram WebApp
-        function initTelegramWebApp() {
-            // Проверяем, что Telegram WebApp доступен
-            if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
-                Telegram.WebApp.ready();
-                Telegram.WebApp.expand(); // Разворачиваем на весь экран
-                
-                // Получаем данные пользователя
-                const user = Telegram.WebApp.initDataUnsafe.user;
-                if (user) {
-                    const userId = user.id.toString();
-                    const firstName = user.first_name || "Guest";
-                    const userData = JSON.stringify({ 
-                        userId: userId,
-                        firstName: firstName,
-                        theme: Telegram.WebApp.colorScheme
-                    });
-                    
-                    // Отправляем данные в Unity
-                    if (typeof unityInstance !== 'undefined') {
-                        unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', userData);
-                    } else {
-                        console.error("Unity instance not found");
-                    }
-                }
-                
-                // Обработчик кнопки "Назад" в Telegram
-                Telegram.WebApp.onEvent('backButtonClicked', function() {
-                    if (typeof unityInstance !== 'undefined') {
-                        unityInstance.SendMessage('TelegramManager', 'OnBackButtonPressed');
-                    }
-                });
-            } else {
-                console.log("Not running in Telegram WebApp");
-                // Тестовые данные для браузера
-                if (typeof unityInstance !== 'undefined') {
-                    unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', 
-                        '{"userId":"12345","firstName":"Test User","theme":"light"}');
-                }
-            }
-        }
-        
-        // Функция для закрытия WebApp (будет вызываться из Unity)
+        // Функция для вызова из Unity
         function CloseWebApp() {
             if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
                 Telegram.WebApp.close();

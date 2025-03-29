@@ -29,16 +29,15 @@
 
     <script>
         // Конфиг Unity (измените под свою сборку)
-        // Пути должны соответствовать именам файлов в папке Build!
         var buildUrl = "Build";
-    var config = {
-        dataUrl: buildUrl + "/Test.data",
-        frameworkUrl: buildUrl + "/Test.framework.js",
-        codeUrl: buildUrl + "/Test.wasm",
-        companyName: "DefaultCompany",
-        productName: "TonDrive",
-        productVersion: "0.1",
-    };
+        var config = {
+            dataUrl: buildUrl + "/Test.data",
+            frameworkUrl: buildUrl + "/Test.framework.js",
+            codeUrl: buildUrl + "/Test.wasm",
+            companyName: "DefaultCompany",
+            productName: "TonDrive",
+            productVersion: "0.1",
+        };
 
         var debugConsole = document.getElementById("debug-console");
         debugConsole.textContent = "Loading Unity...";

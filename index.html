@@ -1,96 +1,33 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Unity Telegram WebApp</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            overflow: hidden;
-            background: #000;
-            font-family: Arial, sans-serif;
-        }
-        
-        #unity-container {
+        body { margin: 0; padding: 0; overflow: hidden; }
+        #unity-container { position: absolute; width: 100%; height: 100%; }
+        #unity-canvas { width: 100%; height: 100%; background: #231F20; }
+        #loading-info {
             position: absolute;
-            width: 100%;
-            height: 100%;
-        }
-        
-        #unity-canvas {
-            width: 100%;
-            height: 100%;
-            background: #231F20;
-        }
-        
-        #loading-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             color: white;
-            z-index: 1000;
-        }
-        
-        #progress-bar {
-            width: 80%;
-            max-width: 300px;
-            height: 20px;
-            margin: 20px 0;
-            background: #333;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        
-        #progress-fill {
-            height: 100%;
-            width: 0%;
-            background: #2a7df6;
-            transition: width 0.3s;
-        }
-        
-        #debug-console {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            color: white;
-            background: rgba(0,0,0,0.7);
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 14px;
-            max-width: 90%;
-            z-index: 999;
+            font-family: Arial;
+            text-align: center;
         }
     </style>
 </head>
 <body>
     <div id="unity-container">
         <canvas id="unity-canvas"></canvas>
-        <div id="loading-overlay">
-            <h2>Loading Game...</h2>
-            <div id="progress-bar">
-                <div id="progress-fill"></div>
-            </div>
-            <p id="status-text">Initializing...</p>
-        </div>
-        <div id="debug-console">Debug information will appear here</div>
+        <div id="loading-info">Loading...</div>
     </div>
 
     <script>
-        // Конфигурация Unity WebGL
+        // Конфиг Unity (проверьте имена файлов!)
         var buildUrl = "Build";
         var config = {
             dataUrl: buildUrl + "/Test.data",
@@ -101,129 +38,67 @@
             productVersion: "0.1",
         };
 
-        // Элементы интерфейса
-        var loadingOverlay = document.getElementById("loading-overlay");
-        var progressFill = document.getElementById("progress-fill");
-        var statusText = document.getElementById("status-text");
-        var debugConsole = document.getElementById("debug-console");
-
-        // Функция для обновления статуса загрузки
-        function updateStatus(message, progress) {
-            statusText.textContent = message;
-            if (progress !== undefined) {
-                progressFill.style.width = (progress * 100) + "%";
-            }
-        }
-
-        // Функция для вывода отладочной информации
-        function logDebug(message) {
-            debugConsole.textContent = message;
-            console.log(message);
-        }
-
-        // Инициализация Telegram WebApp
-        function initTelegram() {
-            if (typeof Telegram === 'undefined' || !Telegram.WebApp) {
-                logDebug("Telegram WebApp not detected - running in browser mode");
-                sendTestData();
-                return;
-            }
-
-            Telegram.WebApp.ready();
-            Telegram.WebApp.expand();
-            logDebug("Telegram WebApp initialized");
-
-            const user = Telegram.WebApp.initDataUnsafe.user;
-            if (user) {
-                const userData = {
-                    userId: user.id.toString(),
-                    firstName: user.first_name || "Anonymous",
-                    theme: Telegram.WebApp.colorScheme
-                };
-                sendToUnity(userData);
-            } else {
-                logDebug("No user data available in Telegram WebApp");
-                sendTestData();
-            }
-        }
-
-        // Отправка данных в Unity
-        function sendToUnity(data) {
-            if (!window.unityInstance) {
-                logDebug("Unity instance not ready - queuing data");
-                setTimeout(() => sendToUnity(data), 500);
-                return;
-            }
-
-            try {
-                const jsonData = JSON.stringify(data);
-                logDebug("Sending to Unity: " + jsonData);
-                
-                // Основной метод отправки
-                unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', jsonData);
-                
-                // Альтернативный метод (если основной не работает)
-                setTimeout(() => {
-                    if (unityInstance.Module && unityInstance.Module.SendMessage) {
-                        unityInstance.Module.SendMessage('TelegramManager', 'OnMessageReceived', jsonData);
-                    }
-                }, 100);
-            } catch (e) {
-                logDebug("Error sending to Unity: " + e.message);
-            }
-        }
-
-        // Тестовые данные
-        function sendTestData() {
-            sendToUnity({
-                userId: "browser_" + Math.floor(Math.random() * 10000),
-                firstName: "Browser User",
-                theme: "light"
-            });
-        }
-
-        // Функция для вызова из Unity
-        function CloseWebApp(unused) {
-            if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
-                Telegram.WebApp.close();
-            }
-        }
+        var loadingInfo = document.getElementById("loading-info");
+        var unityInstance = null;
 
         // Загрузка Unity
-        updateStatus("Loading Unity runtime...");
         var script = document.createElement("script");
         script.src = buildUrl + "/Test.loader.js";
         
         script.onload = function() {
-            updateStatus("Initializing game engine...");
-            
             createUnityInstance(document.querySelector("#unity-canvas"), config, function(progress) {
-                updateStatus("Downloading game data...", progress);
+                loadingInfo.textContent = "Loading: " + Math.round(progress * 100) + "%";
             }).then(function(instance) {
-                window.unityInstance = instance;
-                updateStatus("Game loaded!", 1);
+                unityInstance = instance;
+                loadingInfo.textContent = "Initializing...";
                 
-                // Скрываем лоадер через 1 секунду
+                // Ждем 2 секунды перед отправкой данных
                 setTimeout(function() {
-                    loadingOverlay.style.opacity = 0;
-                    setTimeout(function() {
-                        loadingOverlay.style.display = "none";
-                        logDebug("Unity fully initialized");
-                        initTelegram();
-                    }, 500);
-                }, 1000);
+                    sendUserData();
+                    loadingInfo.style.display = "none";
+                }, 2000);
             }).catch(function(error) {
-                updateStatus("Loading failed!");
-                logDebug("Unity initialization error: " + error);
+                loadingInfo.textContent = "Error: " + error;
             });
         };
         
-        script.onerror = function() {
-            updateStatus("Failed to load game!");
-            logDebug("Failed to load Unity loader script");
-        };
-        
         document.body.appendChild(script);
+
+        // Отправка данных пользователя
+        function sendUserData() {
+            if (!unityInstance) {
+                console.error("Unity instance not ready");
+                return;
+            }
+
+            var userData = {
+                userId: "unknown",
+                firstName: "User"
+            };
+
+            // Проверяем Telegram WebApp
+            if (typeof Telegram !== 'undefined' && Telegram.WebApp && Telegram.WebApp.initDataUnsafe.user) {
+                var tgUser = Telegram.WebApp.initDataUnsafe.user;
+                userData = {
+                    userId: tgUser.id.toString(),
+                    firstName: tgUser.first_name || "Anonymous"
+                };
+            }
+
+            console.log("Sending to Unity:", userData);
+            
+            // Пробуем оба метода отправки
+            try {
+                unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', JSON.stringify(userData));
+            } catch (e) {
+                console.error("Standard SendMessage failed:", e);
+                try {
+                    unityInstance.Module.SendMessage('TelegramManager', 'OnMessageReceived', JSON.stringify(userData));
+                } catch (e2) {
+                    console.error("Module.SendMessage failed:", e2);
+                }
+            }
+        }
     </script>
 </body>
 </html>

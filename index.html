@@ -27,7 +27,7 @@
     </div>
 
     <script>
-        // Конфиг Unity (проверьте имена файлов!)
+        // Конфигурация Unity
         var buildUrl = "Build";
         var config = {
             dataUrl: buildUrl + "/Test.data",
@@ -51,12 +51,8 @@
             }).then(function(instance) {
                 unityInstance = instance;
                 loadingInfo.textContent = "Initializing...";
-                
-                // Ждем 2 секунды перед отправкой данных
-                setTimeout(function() {
-                    sendUserData();
-                    loadingInfo.style.display = "none";
-                }, 2000);
+                sendUserData(); // Отправляем данные сразу после загрузки
+                loadingInfo.style.display = "none";
             }).catch(function(error) {
                 loadingInfo.textContent = "Error: " + error;
             });
@@ -64,40 +60,26 @@
         
         document.body.appendChild(script);
 
-        // Отправка данных пользователя
+        // Отправка данных в Unity
         function sendUserData() {
-            if (!unityInstance) {
-                console.error("Unity instance not ready");
-                return;
-            }
+            if (!unityInstance) return;
 
-            var userData = {
+            let userData = {
                 userId: "unknown",
                 firstName: "User"
             };
 
-            // Проверяем Telegram WebApp
-            if (typeof Telegram !== 'undefined' && Telegram.WebApp && Telegram.WebApp.initDataUnsafe.user) {
-                var tgUser = Telegram.WebApp.initDataUnsafe.user;
+            // Проверка Telegram WebApp
+            if (typeof Telegram !== 'undefined' && Telegram.WebApp?.initDataUnsafe?.user) {
+                const tgUser = Telegram.WebApp.initDataUnsafe.user;
                 userData = {
-                    userId: tgUser.id.toString(),
+                    userId: tgUser.id?.toString() || "null",
                     firstName: tgUser.first_name || "Anonymous"
                 };
             }
 
             console.log("Sending to Unity:", userData);
-            
-            // Пробуем оба метода отправки
-            try {
-                unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', JSON.stringify(userData));
-            } catch (e) {
-                console.error("Standard SendMessage failed:", e);
-                try {
-                    unityInstance.Module.SendMessage('TelegramManager', 'OnMessageReceived', JSON.stringify(userData));
-                } catch (e2) {
-                    console.error("Module.SendMessage failed:", e2);
-                }
-            }
+            unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', JSON.stringify(userData));
         }
     </script>
 </body>

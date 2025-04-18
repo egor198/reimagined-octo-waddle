@@ -47,7 +47,7 @@
         
         script.onload = function() {
             createUnityInstance(document.querySelector("#unity-canvas"), config, function(progress) {
-                loadingInfo.textContent = "Loading: " + Math.round(progress * 100) + "%2";
+                loadingInfo.textContent = "Loading: " + Math.round(progress * 100) + "%1";
             }).then(function(instance) {
                 unityInstance = instance;
                 loadingInfo.textContent = "Initializing...";

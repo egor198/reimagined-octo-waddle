@@ -34,7 +34,9 @@ function sendToUnity(data) {
         
         // Отправляем данные сразу при загрузке
         if (unityInstance.SendMessage) {
-            unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', json);
+            setTimeout(() => {
+                unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', json);
+            }, 300);
         }
     } catch (e) {
         console.error("Failed to send data to Unity:", e);

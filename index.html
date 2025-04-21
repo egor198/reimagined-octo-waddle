@@ -47,7 +47,7 @@
         
         script.onload = function() {
             createUnityInstance(document.querySelector("#unity-canvas"), config, function(progress) {
-                loadingInfo.textContent = "Loading: " + Math.round(progress * 100) + "%3";
+                loadingInfo.textContent = "Loading: " + Math.round(progress * 100) + "%1";
             }).then(function(instance) {
                 unityInstance = instance;
                 loadingInfo.textContent = "Initializing...";
@@ -82,5 +82,30 @@
             unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', JSON.stringify(userData));
         }
     </script>
+
+<script>
+    // Добавляем глобальную функцию для вызова из Unity
+    function CheckUserInDB(userJson) {
+        fetch('https://test-1c701-default-rtdb.firebaseio.com/' + userJson.userId + '.json')
+            .then(response => response.json())
+            .then(data => {
+                if(!data) {
+                    // Пользователь не найден, создаем запись
+                    fetch('https://test-1c701-default-rtdb.firebaseio.com/' + userJson.userId + '.json', {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            firstName: userJson.firstName,
+                            created: new Date().toISOString()
+                        })
+                    });
+                }
+                // Отправляем результат в Unity
+                unityInstance.SendMessage('TelegramManager', 'OnUserChecked', JSON.stringify({
+                    exists: !!data,
+                    ...userJson
+                }));
+            });
+    }
+</script>
 </body>
 </html>

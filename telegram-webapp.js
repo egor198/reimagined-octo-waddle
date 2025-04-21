@@ -32,11 +32,9 @@ function sendToUnity(data) {
         const json = JSON.stringify(data);
         console.log("Sending to Unity:", json);
         
-        // Два варианта вызова на выбор:
+        // Отправляем данные сразу при загрузке
         if (unityInstance.SendMessage) {
             unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', json);
-        } else if (unityInstance.Module?.SendMessage) {
-            unityInstance.Module.SendMessage('TelegramManager', 'OnMessageReceived', json);
         }
     } catch (e) {
         console.error("Failed to send data to Unity:", e);

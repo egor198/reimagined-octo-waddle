@@ -62,25 +62,37 @@
 
         // Отправка данных в Unity
         function sendUserData() {
-            if (!unityInstance) return;
+    if (!unityInstance) return;
 
-            let userData = {
-                userId: "unknown",
-                firstName: "User"
+    const sendData = () => {
+        let userData = {
+            userId: "unknown",
+            firstName: "User"
+        };
+
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp?.initDataUnsafe?.user) {
+            const tgUser = Telegram.WebApp.initDataUnsafe.user;
+            userData = {
+                userId: tgUser.id?.toString() || "null",
+                firstName: tgUser.first_name || "Anonymous"
             };
-
-            // Проверка Telegram WebApp
-            if (typeof Telegram !== 'undefined' && Telegram.WebApp?.initDataUnsafe?.user) {
-                const tgUser = Telegram.WebApp.initDataUnsafe.user;
-                userData = {
-                    userId: tgUser.id?.toString() || "null",
-                    firstName: tgUser.first_name || "Anonymous"
-                };
-            }
-
-            console.log("Sending to Unity:", userData);
-            unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', JSON.stringify(userData));
         }
+
+        console.log("Sending to Unity:", userData);
+        unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', JSON.stringify(userData));
+    };
+
+    if (unityInstance.IsLoaded) {
+        sendData();
+    } else {
+        const interval = setInterval(() => {
+            if (unityInstance.IsLoaded) {
+                clearInterval(interval);
+                sendData();
+            }
+        }, 100);
+    }
+}
     </script>
 
 <script>

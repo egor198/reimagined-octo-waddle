@@ -86,25 +86,28 @@
 <script>
     // Добавляем глобальную функцию для вызова из Unity
     function CheckUserInDB(userJson) {
-        fetch('https://test-1c701-default-rtdb.firebaseio.com/' + userJson.userId + '.json')
-            .then(response => response.json())
-            .then(data => {
-                if(!data) {
-                    // Пользователь не найден, создаем запись
-                    fetch('https://test-1c701-default-rtdb.firebaseio.com/' + userJson.userId + '.json', {
-                        method: 'PUT',
-                        body: JSON.stringify({
-                            firstName: userJson.firstName,
-                            created: new Date().toISOString()
-                        })
-                    });
-                }
-                // Отправляем результат в Unity
-                unityInstance.SendMessage('TelegramManager', 'OnUserChecked', JSON.stringify({
-                    exists: !!data,
-                    ...userJson
-                }));
-            });
+    const userData = JSON.parse(userJson);
+    fetch('https://test-1c701-default-rtdb.firebaseio.com/' + userData.userId + '.json')
+        .then(response => response.json())
+        .then(data => {
+            if(!data) {
+                // Создаем запись с ВСЕМИ данными
+                fetch('https://test-1c701-default-rtdb.firebaseio.com/' + userData.userId + '.json', {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        userId: userData.userId, // Добавьте это
+                        firstName: userData.firstName,
+                        created: new Date().toISOString()
+                    })
+                });
+            }
+            // Всегда возвращаем ОРИГИНАЛЬНЫЕ данные
+            unityInstance.SendMessage('TelegramManager', 'OnUserChecked', JSON.stringify({
+                exists: !!data,
+                userId: userData.userId, // Берем из исходных данных
+                firstName: userData.firstName // Берем из исходных данных
+            }));
+        });
     }
 </script>
 </body>

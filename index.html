@@ -86,27 +86,30 @@
 <script>
     function CheckUserInDB(userJson) {
     const userData = JSON.parse(userJson);
-    const dbRef = `https://test-1c701-default-rtdb.firebaseio.com/${userData.userId}.json`;
+    const dbRef = `https://test-1c701-default-rtdb.firebaseio.com/users/${userData.userId}.json`; // Добавим /users/
 
     fetch(dbRef)
-        .then(response => response.json())
-        .then(data => {
-            const newData = {
-                firstName: userData.firstName,
-                photoUrl: userData.photoUrl,
-                currency: data?.currency || 100, // Стартовый баланс 100
-                created: data?.created || new Date().toISOString(),
-                lastLogin: new Date().toISOString()
-            };
+    .then(response => response.json())
+    .then(data => {
+        // Если пользователь новый
+        const isNewUser = !data;
+        
+        const userRecord = {
+            firstName: data?.firstName || userData.firstName,
+            photoUrl: data?.photoUrl || userData.photoUrl || "",
+            currency: data?.currency || 100, // Стартовая валюта
+            created: data?.created || new Date().toISOString(),
+            updated: new Date().toISOString()
+        };
 
-            // Обновляем только недостающие поля
-            fetch(dbRef, {
-                method: 'PATCH', // Важно использовать PATCH вместо PUT
-                body: JSON.stringify(newData)
-            }).then(() => {
-                unityInstance.SendMessage('TelegramManager', 'OnUserChecked', JSON.stringify(newData));
-            });
+        // Для новых пользователей используем PUT, для существующих - PATCH
+        fetch(dbRef, {
+            method: isNewUser ? 'PUT' : 'PATCH',
+            body: JSON.stringify(userRecord)
+        }).then(() => {
+            unityInstance.SendMessage('TelegramManager', 'OnUserChecked', JSON.stringify(userRecord));
         });
+    });
 }
 
     // Автоматическая проверка при получении данных

@@ -84,30 +84,51 @@
     </script>
 
 <script>
-    // Добавляем глобальную функцию для вызова из Unity
     function CheckUserInDB(userJson) {
-    const userData = JSON.parse(userJson);
-    fetch('https://test-1c701-default-rtdb.firebaseio.com/' + userData.userId + '.json')
-        .then(response => response.json())
-        .then(data => {
-            if(!data) {
-                // Создаем запись с ВСЕМИ данными
-                fetch('https://test-1c701-default-rtdb.firebaseio.com/' + userData.userId + '.json', {
-                    method: 'PUT',
-                    body: JSON.stringify({
-                        userId: userData.userId, // Добавьте это
-                        firstName: userData.firstName,
-                        created: new Date().toISOString()
-                    })
-                });
-            }
-            // Всегда возвращаем ОРИГИНАЛЬНЫЕ данные
-            unityInstance.SendMessage('TelegramManager', 'OnUserChecked', JSON.stringify({
-                exists: !!data,
-                userId: userData.userId, // Берем из исходных данных
-                firstName: userData.firstName // Берем из исходных данных
-            }));
-        });
+        const userData = JSON.parse(userJson);
+        fetch('https://test-1c701-default-rtdb.firebaseio.com/' + userData.userId + '.json')
+            .then(response => response.json())
+            .then(data => {
+                const userRecord = {
+                    userId: userData.userId,
+                    firstName: userData.firstName,
+                    photoUrl: userData.photoUrl || "",
+                    currency: data?.currency || 0,
+                    created: data?.created || new Date().toISOString()
+                };
+
+                if(!data) {
+                    fetch(`https://test-1c701-default-rtdb.firebaseio.com/${userData.userId}.json`, {
+                        method: 'PUT',
+                        body: JSON.stringify(userRecord)
+                    });
+                }
+
+                unityInstance.SendMessage('TelegramManager', 'OnUserChecked', JSON.stringify(userRecord));
+            });
+    }
+
+    // Автоматическая проверка при получении данных
+    function sendUserData() {
+        if (!unityInstance) return;
+
+        let userData = {
+            userId: "unknown",
+            firstName: "User",
+            photoUrl: ""
+        };
+
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp?.initDataUnsafe?.user) {
+            const tgUser = Telegram.WebApp.initDataUnsafe.user;
+            userData = {
+                userId: tgUser.id?.toString() || "null",
+                firstName: tgUser.first_name || "Anonymous",
+                photoUrl: tgUser.photo_url || ""
+            };
+        }
+
+        unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', JSON.stringify(userData));
+        CheckUserInDB(JSON.stringify(userData)); // Автоматический вызов проверки
     }
 </script>
 </body>

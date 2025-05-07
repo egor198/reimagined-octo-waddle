@@ -47,7 +47,7 @@
         
         script.onload = function() {
             createUnityInstance(document.querySelector("#unity-canvas"), config, function(progress) {
-                loadingInfo.textContent = "Loading: " + Math.round(progress * 100) + "%6";
+                loadingInfo.textContent = "Loading: " + Math.round(progress * 100) + "%7";
             }).then(function(instance) {
                 unityInstance = instance;
                 loadingInfo.textContent = "Initializing...";
@@ -86,35 +86,36 @@
 <script>
     async function CheckUserInDB(userJson) {
         const userData = JSON.parse(userJson);
-        const dbPath = `users/${userData.userId}`; // Используем отдельную ветку "users"
+        const dbPath = `users/${userData.userId}`;
         const dbUrl = `https://test-1c701-default-rtdb.firebaseio.com/${dbPath}.json`;
     
         try {
+            // Получаем текущие данные
             const response = await fetch(dbUrl);
-            const data = await response.json();
-            
-            // Если пользователь существует - берем текущее значение, иначе 100
-            const newCurrency = data?.currency ?? 100;
-            
-            // Обновляем только необходимые поля через PATCH
+            const existingData = await response.json() || {};
+    
+            // Формируем обновленные данные
             const updateData = {
                 firstName: userData.firstName,
                 photoUrl: userData.photoUrl,
-                currency: newCurrency, // Сохраняем существующее значение
+                currency: existingData.currency || 100,
                 lastLogin: new Date().toISOString()
             };
     
+            // Отправляем обновление
             await fetch(dbUrl, {
                 method: 'PATCH',
                 body: JSON.stringify(updateData)
             });
     
-            unityInstance.SendMessage('TelegramManager', 'OnUserChecked', JSON.stringify({
-                ...updateData,
-                currency: newCurrency
-            }));
+            // Отправляем данные в Unity
+            unityInstance.SendMessage('TelegramManager', 'OnUserChecked', 
+                JSON.stringify({
+                    currency: updateData.currency,
+                    firstName: updateData.firstName
+                }));
         } catch (error) {
-            console.error("DB Error:", error);
+            console.error("Database error:", error);
         }
     }
 

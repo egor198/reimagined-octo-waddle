@@ -47,7 +47,7 @@
         
         script.onload = function() {
             createUnityInstance(document.querySelector("#unity-canvas"), config, function(progress) {
-                loadingInfo.textContent = "Loading: " + Math.round(progress * 100) + "%7";
+                loadingInfo.textContent = "Loading: " + Math.round(progress * 100) + "%8";
             }).then(function(instance) {
                 unityInstance = instance;
                 loadingInfo.textContent = "Initializing...";
@@ -84,57 +84,49 @@
     </script>
 
 <script>
-    async function CheckUserInDB(userJson) {
-    const userData = JSON.parse(userJson);
-    const dbPath = `users/${userData.userId}`;
-    const dbUrl = `https://test-1c701-default-rtdb.firebaseio.com/${dbPath}.json`;
-
-    try {
-        // Получаем текущие данные
-        const response = await fetch(dbUrl);
-        const existingData = await response.json() || {};
-
-        // Обновляем только необходимые поля
-        const updateData = {
-            firstName: userData.firstName,
-            photoUrl: userData.photoUrl,
-            currency: existingData.currency || 100
-        };
-
-        // Отправляем обновление
-        await fetch(dbUrl, {
-            method: 'PATCH',
-            body: JSON.stringify(updateData)
-        });
-
-        // Отправляем актуальные данные в Unity
-        unityInstance.SendMessage('TelegramManager', 'OnUserChecked', JSON.stringify(updateData));
-    } catch (error) {
-        console.error("Database error:", error);
-    }
-}
-
-    // Автоматическая проверка при получении данных
     function sendUserData() {
         if (!unityInstance) return;
 
         let userData = {
             userId: "unknown",
-            firstName: "User",
-            photoUrl: ""
+            firstName: "User"
         };
 
         if (typeof Telegram !== 'undefined' && Telegram.WebApp?.initDataUnsafe?.user) {
             const tgUser = Telegram.WebApp.initDataUnsafe.user;
             userData = {
                 userId: tgUser.id?.toString() || "null",
-                firstName: tgUser.first_name || "Anonymous",
-                photoUrl: tgUser.photo_url || ""
+                firstName: tgUser.first_name || "Anonymous"
             };
         }
 
         unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', JSON.stringify(userData));
-        CheckUserInDB(JSON.stringify(userData)); // Автоматический вызов проверки
+        CheckUserInDB(JSON.stringify(userData));
+    }
+
+    async function CheckUserInDB(userJson) {
+        const userData = JSON.parse(userJson);
+        const dbPath = `users/${userData.userId}`;
+        const dbUrl = `https://test-1c701-default-rtdb.firebaseio.com/${dbPath}.json`;
+
+        try {
+            const response = await fetch(dbUrl);
+            const existingData = await response.json() || {};
+
+            const updateData = {
+                firstName: userData.firstName,
+                currency: existingData.currency || 100
+            };
+
+            await fetch(dbUrl, {
+                method: 'PATCH',
+                body: JSON.stringify(updateData)
+            });
+
+            unityInstance.SendMessage('TelegramManager', 'OnUserChecked', JSON.stringify(updateData));
+        } catch (error) {
+            console.error("Database error:", error);
+        }
     }
 </script>
 </body>

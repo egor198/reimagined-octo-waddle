@@ -85,39 +85,34 @@
 
 <script>
     async function CheckUserInDB(userJson) {
-        const userData = JSON.parse(userJson);
-        const dbPath = `users/${userData.userId}`;
-        const dbUrl = `https://test-1c701-default-rtdb.firebaseio.com/${dbPath}.json`;
-    
-        try {
-            // Получаем текущие данные
-            const response = await fetch(dbUrl);
-            const existingData = await response.json() || {};
-    
-            // Формируем обновленные данные
-            const updateData = {
-                firstName: userData.firstName,
-                photoUrl: userData.photoUrl,
-                currency: existingData.currency || 100,
-                lastLogin: new Date().toISOString()
-            };
-    
-            // Отправляем обновление
-            await fetch(dbUrl, {
-                method: 'PATCH',
-                body: JSON.stringify(updateData)
-            });
-    
-            // Отправляем данные в Unity
-            unityInstance.SendMessage('TelegramManager', 'OnUserChecked', 
-                JSON.stringify({
-                    currency: updateData.currency,
-                    firstName: updateData.firstName
-                }));
-        } catch (error) {
-            console.error("Database error:", error);
-        }
+    const userData = JSON.parse(userJson);
+    const dbPath = `users/${userData.userId}`;
+    const dbUrl = `https://test-1c701-default-rtdb.firebaseio.com/${dbPath}.json`;
+
+    try {
+        // Получаем текущие данные
+        const response = await fetch(dbUrl);
+        const existingData = await response.json() || {};
+
+        // Обновляем только необходимые поля
+        const updateData = {
+            firstName: userData.firstName,
+            photoUrl: userData.photoUrl,
+            currency: existingData.currency || 100
+        };
+
+        // Отправляем обновление
+        await fetch(dbUrl, {
+            method: 'PATCH',
+            body: JSON.stringify(updateData)
+        });
+
+        // Отправляем актуальные данные в Unity
+        unityInstance.SendMessage('TelegramManager', 'OnUserChecked', JSON.stringify(updateData));
+    } catch (error) {
+        console.error("Database error:", error);
     }
+}
 
     // Автоматическая проверка при получении данных
     function sendUserData() {

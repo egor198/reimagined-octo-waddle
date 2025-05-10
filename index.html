@@ -47,7 +47,7 @@
         
         script.onload = function() {
             createUnityInstance(document.querySelector("#unity-canvas"), config, function(progress) {
-                loadingInfo.textContent = "Loading: " + Math.round(progress * 100) + "%8";
+                loadingInfo.textContent = "Loading: " + Math.round(progress * 100) + "%9";
             }).then(function(instance) {
                 unityInstance = instance;
                 loadingInfo.textContent = "Initializing...";
@@ -85,24 +85,35 @@
 
 <script>
     function sendUserData() {
-        if (!unityInstance) return;
-
-        let userData = {
-            userId: "unknown",
-            firstName: "User"
-        };
-
-        if (typeof Telegram !== 'undefined' && Telegram.WebApp?.initDataUnsafe?.user) {
-            const tgUser = Telegram.WebApp.initDataUnsafe.user;
-            userData = {
-                userId: tgUser.id?.toString() || "null",
-                firstName: tgUser.first_name || "Anonymous"
-            };
-        }
-
-        unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', JSON.stringify(userData));
-        CheckUserInDB(JSON.stringify(userData));
+    if (!unityInstance) {
+        console.error("Unity instance not ready");
+        return;
     }
+
+    let userData = {
+        userId: "unknown",
+        firstName: "User",
+        photoUrl: ""
+    };
+
+    if (typeof Telegram !== 'undefined' && Telegram.WebApp?.initDataUnsafe?.user) {
+        const tgUser = Telegram.WebApp.initDataUnsafe.user;
+        userData = {
+            userId: String(tgUser.id),
+            firstName: tgUser.first_name || "Anonymous",
+            photoUrl: tgUser.photo_url || ""
+        };
+        console.log("Telegram user data:", userData);
+    }
+
+    try {
+        unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', JSON.stringify(userData));
+        console.log("Data sent to Unity");
+    } catch (e) {
+        console.error("Failed to send data:", e);
+    }
+}
+
 
     async function CheckUserInDB(userJson) {
         const userData = JSON.parse(userJson);

@@ -84,57 +84,52 @@
     </script>
 
 <script>
+    // Упрощенная функция отправки данных
     function sendUserData() {
-    if (!unityInstance) {
-        console.error("Unity instance not ready");
-        return;
-    }
+        if (!unityInstance) {
+            console.error("Unity instance not ready");
+            return;
+        }
 
-    let userData = {
-        userId: "unknown",
-        firstName: "User",
-        photoUrl: ""
-    };
-
-    if (typeof Telegram !== 'undefined' && Telegram.WebApp?.initDataUnsafe?.user) {
-        const tgUser = Telegram.WebApp.initDataUnsafe.user;
-        userData = {
-            userId: String(tgUser.id),
-            firstName: tgUser.first_name || "Anonymous",
-            photoUrl: tgUser.photo_url || ""
+        let userData = {
+            userId: "unknown",
+            firstName: "User",
+            photoUrl: "",
+            authData: Telegram.WebApp.initData || ""
         };
-        console.log("Telegram user data:", userData);
-    }
 
-    try {
-        unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', JSON.stringify(userData));
-        console.log("Data sent to Unity");
-    } catch (e) {
-        console.error("Failed to send data:", e);
-    }
-}
-
-
-    async function CheckUserInDB(userJson) {
-        const userData = JSON.parse(userJson);
-        const dbPath = `users/${userData.userId}`;
-        const dbUrl = `https://test-1c701-default-rtdb.firebaseio.com/${dbPath}.json`;
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp?.initDataUnsafe?.user) {
+            const tgUser = Telegram.WebApp.initDataUnsafe.user;
+            userData = {
+                userId: String(tgUser.id),
+                firstName: tgUser.first_name || "Anonymous",
+                photoUrl: tgUser.photo_url || "",
+                authData: Telegram.WebApp.initData
+            };
+        }
 
         try {
-            const response = await fetch(dbUrl);
-            const existingData = await response.json() || {};
+            unityInstance.SendMessage('TelegramManager', 'OnTelegramDataReceived', JSON.stringify(userData));
+            console.log("Telegram data sent to Unity");
+        } catch (e) {
+            console.error("Failed to send data:", e);
+        }
+    }
 
-            const updateData = {
-                firstName: userData.firstName,
-                currency: existingData.currency || 100
-            };
-
-            await fetch(dbUrl, {
-                method: 'PATCH',
-                body: JSON.stringify(updateData)
+    // Обновленная функция проверки пользователя
+    async function CheckUserInDB(userJson) {
+        try {
+            const response = await fetch('https://your-firebase-function.com/checkUser', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${Telegram.WebApp.initData}`
+                },
+                body: userJson
             });
-
-            unityInstance.SendMessage('TelegramManager', 'OnUserChecked', JSON.stringify(updateData));
+            
+            const data = await response.json();
+            unityInstance.SendMessage('TelegramManager', 'OnUserDataLoaded', JSON.stringify(data));
         } catch (error) {
             console.error("Database error:", error);
         }

@@ -85,34 +85,34 @@
 
 <script>
     function sendUserData() {
-    if (!unityInstance) {
-        console.error("Unity instance not ready");
-        return;
-    }
+        if (!unityInstance) {
+            console.error("Unity instance not ready");
+            return;
+        }
 
-    let userData = {
-        userId: "unknown",
-        firstName: "User",
-        photoUrl: ""
-    };
-
-    if (typeof Telegram !== 'undefined' && Telegram.WebApp?.initDataUnsafe?.user) {
-        const tgUser = Telegram.WebApp.initDataUnsafe.user;
-        userData = {
-            userId: String(tgUser.id),
-            firstName: tgUser.first_name || "Anonymous",
-            photoUrl: tgUser.photo_url || ""
+        let userData = {
+            userId: "unknown",
+            firstName: "User",
+            photoUrl: ""
         };
-        console.log("Telegram user data:", userData);
-    }
 
-    try {
-        unityInstance.SendMessage('TelegramManager', 'OnMessageReceived', JSON.stringify(userData));
-        console.log("Data sent to Unity");
-    } catch (e) {
-        console.error("Failed to send data:", e);
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp?.initDataUnsafe?.user) {
+            const tgUser = Telegram.WebApp.initDataUnsafe.user;
+            userData = {
+                userId: String(tgUser.id),
+                firstName: tgUser.first_name || "Anonymous",
+                photoUrl: tgUser.photo_url || "" // Важно: photo_url может быть недоступен
+            };
+            console.log("Telegram user data:", userData);
+        }
+
+        try {
+            unityInstance.SendMessage('TelegramManager', 'OnUserDataReceived', JSON.stringify(userData));
+            console.log("Data sent to Unity");
+        } catch (e) {
+            console.error("Failed to send data:", e);
+        }
     }
-}
 
 
     async function CheckUserInDB(userJson) {

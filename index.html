@@ -116,29 +116,33 @@
 
 
     async function CheckUserInDB(userJson) {
-        const userData = JSON.parse(userJson);
-        const dbPath = `users/${userData.userId}`;
-        const dbUrl = `https://test-1c701-default-rtdb.firebaseio.com/${dbPath}.json`;
+    const userData = JSON.parse(userJson);
+    const dbPath = `users/${userData.userId}`;
+    const dbUrl = `https://test-1c701-default-rtdb.firebaseio.com/${dbPath}.json`;
 
-        try {
-            const response = await fetch(dbUrl);
-            const existingData = await response.json() || {};
+    try {
+        const response = await fetch(dbUrl);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        const existingData = await response.json() || {};
+        const updateData = {
+            firstName: userData.firstName,
+            currency: existingData.currency || 100 // Всегда инициализируем через сервер
+        };
 
-            const updateData = {
-                firstName: userData.firstName,
-                currency: existingData.currency || 100
-            };
-
-            await fetch(dbUrl, {
-                method: 'PATCH',
-                body: JSON.stringify(updateData)
-            });
-
-            unityInstance.SendMessage('TelegramManager', 'OnUserChecked', JSON.stringify(updateData));
-        } catch (error) {
-            console.error("Database error:", error);
-        }
+        const updateResponse = await fetch(dbUrl, {
+            method: 'PATCH',
+            body: JSON.stringify(updateData)
+        });
+        
+        if (!updateResponse.ok) throw new Error('Update failed');
+        
+        unityInstance.SendMessage('TelegramManager', 'OnUserChecked', JSON.stringify(updateData));
+    } catch (error) {
+        console.error("Database error:", error);
+        // Здесь можно добавить повтор запроса или показать ошибку
     }
+}
 </script>
 </body>
 </html>

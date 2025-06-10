@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Content-Security-Policy" content="default-src * data: blob: 'unsafe-inline' 'unsafe-eval'">
     <title>Unity Telegram WebApp</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -27,7 +28,6 @@
     </div>
 
     <script>
-        // Конфигурация Unity
         const buildUrl = "Build";
         const config = {
             dataUrl: buildUrl + "/Test.data",
@@ -41,7 +41,6 @@
         const loadingInfo = document.getElementById("loading-info");
         let unityInstance = null;
 
-        // Загрузка Unity
         const script = document.createElement("script");
         script.src = buildUrl + "/Test.loader.js";
         
@@ -51,7 +50,11 @@
             }).then((instance) => {
                 unityInstance = instance;
                 loadingInfo.textContent = "Initializing...";
-                sendUserData();
+                
+                // Добавляем обработчик для сообщений от Unity
+                window.unityInstance = instance;
+                
+                initializeTelegram();
                 loadingInfo.style.display = "none";
             }).catch((error) => {
                 loadingInfo.textContent = `Error: ${error}`;
@@ -60,61 +63,35 @@
         
         document.body.appendChild(script);
 
-        // Отправка данных в Unity
-        function sendUserData() {
-            if (!unityInstance) return;
-
-            let userData = {
-                userId: "unknown",
-                firstName: "User",
-                photoUrl: ""
-            };
-
-            if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
-                const tgUser = Telegram.WebApp.initDataUnsafe.user;
-                userData = {
-                    userId: String(tgUser.id),
-                    firstName: tgUser.first_name || "Anonymous",
-                    photoUrl: tgUser.photo_url || ""
-                };
-            }
-
-            try {
-                unityInstance.SendMessage('TelegramManager', 'OnUserDataReceived', JSON.stringify(userData));
-                console.log("Данные отправлены в Unity:", userData);
-            } catch (e) {
-                console.error("Ошибка отправки данных:", e);
-            }
-        }
-
-        // Работа с Firebase
-        async function CheckUserInDB(userJson) {
-            try {
-                const userData = JSON.parse(userJson);
-                const dbUrl = `https://test-1c701-default-rtdb.firebaseio.com/users/${userData.userId}.json`;
-
-                const response = await fetch(dbUrl);
-                if (!response.ok) throw new Error(`Ошибка HTTP: ${response.status}`);
-
-                const existingData = await response.json() || {};
-                const updateData = {
-                    firstName: userData.firstName,
-                    currency: existingData.currency || 100
-                };
-
-                const updateResponse = await fetch(dbUrl, {
-                    method: 'PATCH',
-                    body: JSON.stringify(updateData),
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                if (!updateResponse.ok) throw new Error('Ошибка обновления');
+        function initializeTelegram() {
+            if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                Telegram.WebApp.ready();
+                Telegram.WebApp.expand();
                 
-                unityInstance.SendMessage('TelegramManager', 'OnUserChecked', JSON.stringify(updateData));
-            } catch (error) {
-                console.error("Ошибка базы данных:", error);
+                const user = Telegram.WebApp.initDataUnsafe.user || {};
+                const userData = {
+                    userId: user.id ? String(user.id) : "guest_" + Date.now(),
+                    firstName: user.first_name || "Гость"
+                };
+
+                // Ждем пока Unity будет готов к приему сообщений
+                const checkInterval = setInterval(() => {
+                    if (unityInstance && unityInstance.SendMessage) {
+                        clearInterval(checkInterval);
+                        unityInstance.SendMessage('TelegramManager', 'OnUserDataReceived', JSON.stringify(userData));
+                    }
+                }, 100);
             }
         }
+
+        // Инициализация аудио
+        let audioInitialized = false;
+        document.addEventListener('click', () => {
+            if (!audioInitialized) {
+                new AudioContext().resume();
+                audioInitialized = true;
+            }
+        });
     </script>
 </body>
 </html>
